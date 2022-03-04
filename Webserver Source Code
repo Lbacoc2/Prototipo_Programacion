@@ -1,0 +1,73 @@
+//https://www.instagram.com/carlosvolt_electronic_robotic
+#include <WiFi.h>
+#include <Wire.h>
+String cadena;
+//Pines 16 y 17 para el módulo LORA
+#define RXD2 16
+#define TXD2 17
+//Atos de nuestra red wifi
+const char* ssid = "Mi_red_wifi";
+const char* password = "Mi_clave_wifi";
+WiFiServer server(80);//Puerto 80 para el navegador wep
+void setup() {
+Serial.begin(9600);//Velocidad del puerto Serial 1
+Serial2.begin(9600,SERIAL_8N1,RXD2,TXD2);//Configuración del puerto serial 2
+//Intentamos conectarnos a la red wifi
+Serial.print("Conectando a la red WiFi");
+Serial.println(ssid);
+WiFi.begin(ssid, password);
+while (WiFi.status() != WL_CONNECTED) {
+delay(500);
+Serial.print(".");
+}
+Serial.println("");
+//Si todo salió bien se asigna una dirección ip que se debe colocar en el navegador
+Serial.println("Conectado con éxito a la red WiFi.");
+Serial.println("La dirección IP es: ");
+Serial.println(WiFi.localIP());
+server.begin();
+Serial.println("Servidor iniciado");
+delay(2000);
+}
+void loop()
+{
+// Lectura de los caracteres en el terminal serial(si estan disponibles desde el módulo LORA)
+if (Serial2.available()) {
+cadena = String("");
+while (Serial2.available()) {
+cadena = cadena + char(Serial2.read());
+delay(1);
+}
+}
+//////Se cumple esta condición cada 25 minutos
+WiFiClient client = server.available();
+if (client)//Si se cumple la condición, se muetra los datos en el webserver
+{
+Serial.println("Cliente web conectado ");
+String request = client.readStringUntil('\r');
+client.println("HTTP/1.1 200 OK");
+client.println("Content-type:text/html");
+client.println("Connection: close");
+client.println("Refresh: 25");//Refresco de la página web cada 25 Minutos
+client.println();
+client.println("<!DOCTYPE html><html>");
+client.println("<head><meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">");
+client.println("<link rel=\"icon\" href=\"data:,\">");
+client.println("</style></head><body><h1>Servidor Web con esp32 Gps Tracker arduino y Modulo LORA</h1>");
+client.println("<h2>Tipo de GPS: GT-U7</h2>");
+client.println("<h2>www.rogerbit.com</h2>");
+client.println("<table><tr><th>Datos Obtenidos</th><th>Ubicacion</th></tr>");
+client.println("<tr><td>Latitud y longitud:</td><td><span class=\"sensor\">");
+client.println("<a href=");
+client.println(cadena);//Datos de lalitud y longitud
+client.println(">");
+client.println(cadena);//Datos de lalitud y longitud para que los muestre como un hiper vinculo
+client.println("</a>");
+client.println("</span></td></tr>");
+client.println("</body></html>");
+client.stop();
+client.println();
+Serial.println("Client disconnected.");
+Serial.println("");
+}
+}
